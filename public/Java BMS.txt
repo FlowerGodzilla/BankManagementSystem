@@ -1,0 +1,145 @@
+import java.sql.*;
+import java.util.Scanner;
+
+public class BankManagementSystem {
+    static Connection connection;
+
+    public static void main(String[] args) {
+        connectToDatabase();
+
+        Scanner scanner = new Scanner(System.in);
+        int choice;
+
+        do {
+            System.out.println("\n1. Register\n2. Login\n3. Admin Login\n0. Exit");
+            System.out.print("Enter your choice: ");
+            choice = scanner.nextInt();
+
+            switch (choice) {
+                case 1:
+                    register();
+                    break;
+                case 2:
+                    login();
+                    break;
+                case 3:
+                    adminLogin();
+                    break;
+                case 0:
+                    break;
+                default:
+                    System.out.println("Invalid choice. Please try again.");
+                    break;
+            }
+        } while (choice != 0);
+
+        scanner.close();
+    }
+
+    private static void connectToDatabase() {
+        try {
+            connection = DriverManager.getConnection("jdbc:sqlite:bank.db");
+            Statement statement = connection.createStatement();
+            statement.executeUpdate("CREATE TABLE IF NOT EXISTS accounts (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    "account_no INTEGER UNIQUE," +
+                    "branch TEXT," +
+                    "bank_balance REAL," +
+                    "email TEXT UNIQUE);");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void register() {
+        try {
+            Scanner scanner = new Scanner(System.in);
+            System.out.print("Enter branch: ");
+            String branch = scanner.nextLine();
+            System.out.print("Enter email address: ");
+            String email = scanner.nextLine();
+            double initialBalance = 0.0;
+
+            PreparedStatement statement = connection.prepareStatement("INSERT INTO accounts (account_no, branch, bank_balance, email) VALUES (?, ?, ?, ?)");
+            statement.setInt(1, generateAccountNumber());
+            statement.setString(2, branch);
+            statement.setDouble(3, initialBalance);
+            statement.setString(4, email);
+
+            statement.executeUpdate();
+            ResultSet resultSet = statement.getGeneratedKeys();
+            if (resultSet.next()) {
+                System.out.println("Registration successful. Your account number is: " + resultSet.getInt(1));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static int generateAccountNumber() {
+        return (int) (Math.random() * 1000000);
+    }
+
+    private static void login() {
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("Enter account number: ");
+        int accountNo = scanner.nextInt();
+        scanner.nextLine(); // Consume the newline character
+
+        System.out.print("Enter email address: ");
+        String email = scanner.nextLine();
+
+        try {
+            PreparedStatement statement = connection.prepareStatement("SELECT * FROM accounts WHERE account_no=? AND email=?");
+            statement.setInt(1, accountNo);
+            statement.setString(2, email);
+
+            ResultSet resultSet = statement.executeQuery();
+
+            if (resultSet.next()) {
+                int id = resultSet.getInt("id");
+                String branch = resultSet.getString("branch");
+                double balance = resultSet.getDouble("bank_balance");
+                System.out.println("Welcome " + email + "!");
+                System.out.println("Account Number: " + accountNo);
+                System.out.println("Branch: " + branch);
+                System.out.println("Bank Balance: " + balance);
+            } else {
+                System.out.println("Invalid account number or email address.");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void adminLogin() {
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("Enter admin password: ");
+        String password = scanner.nextLine();
+
+        // Add your admin password validation here
+        if (password.equals("admin")) {
+            try {
+                Statement statement = connection.createStatement();
+                ResultSet resultSet = statement.executeQuery("SELECT * FROM accounts");
+
+                while (resultSet.next()) {
+                    int accountNo = resultSet.getInt("account_no");
+                    String branch = resultSet.getString("branch");
+                    double balance = resultSet.getDouble("bank_balance");
+                    String email = resultSet.getString("email");
+
+                    System.out.println("Account Number: " + accountNo);
+                    System.out.println("Branch: " + branch);
+                    System.out.println("Bank Balance: " + balance);
+                    System.out.println("Email: " + email);
+                    System.out.println("-----------------------");
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        } else {
+            System.out.println("Invalid admin password.");
+        }
+    }
+}
